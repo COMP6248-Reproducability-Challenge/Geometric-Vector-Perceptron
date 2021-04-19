@@ -1,1 +1,1 @@
-# Geometric-Vector-Perceptrons
+# Geometric Vector Perceptron
