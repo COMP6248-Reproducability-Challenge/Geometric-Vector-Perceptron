@@ -5,4 +5,5 @@ dependencies:
   - pip
   - numpy
   - pip:
+    - git+https://github.com/giuliano-oliveira/gdown.git@563e565b64e1d1ae66cf6c459a51da8ad16a871f#egg=gdown
     - -e .
