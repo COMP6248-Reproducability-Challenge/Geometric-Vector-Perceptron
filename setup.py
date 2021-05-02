@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
 setup(
-    name="src",
+    name="gvp",
     packages=find_packages()
 )
