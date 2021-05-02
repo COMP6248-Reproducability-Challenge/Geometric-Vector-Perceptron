@@ -1,9 +1,14 @@
 name: gvp
 channels:
+  - defaults
+  - conda-forge
 dependencies:
   - python=3.9
   - pip
   - numpy
+  - pytorch=1.8.1
+  - torchvision
   - pip:
-    - git+https://github.com/giuliano-oliveira/gdown.git@563e565b64e1d1ae66cf6c459a51da8ad16a871f#egg=gdown
+    - git+https://github.com/giuliano-oliveira/gdown.git@563e565b64e1d1ae66cf6c459a51da8ad16a871f#egg=gdown # gdown fork with download_folder
+    - geometric-vector-perceptron
     - -e .
