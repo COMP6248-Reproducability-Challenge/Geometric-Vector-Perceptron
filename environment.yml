@@ -2,8 +2,9 @@ name: gvp
 channels:
   - defaults
   - conda-forge
+  - pytorch
 dependencies:
-  - python=3.9
+  - python=3.7
   - pip
   - numpy
   - pytorch=1.8.1
