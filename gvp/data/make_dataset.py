@@ -12,3 +12,6 @@ def download_synthetic_dataset():
     data_path.mkdir(parents=True, exist_ok=True)
 
     gdown.download_folder(url, output=data_path.parent)
+
+if __name__ == "__main__":
+    download_synthetic_dataset()
