@@ -5,7 +5,8 @@ def download_synthetic_dataset():
     # sythetic dataset uploaded by authors
     # https://drive.google.com/drive/folders/1XuCyPFTM2Ro9kfCP_tWOF1uwBB-Hn3LH
 
-    url = "https://drive.google.com/drive/folders/1XuCyPFTM2Ro9kfCP_tWOF1uwBB-Hn3LH"
+    # url = "https://drive.google.com/drive/folders/1XuCyPFTM2Ro9kfCP_tWOF1uwBB-Hn3LH"
+    url = "https://drive.google.com/drive/folders/1ip1q3zKL2N3-pubdOBnk0dw9AnnQSNpE"
 
     # mkdir if it doesnt exist
     data_path = Path("data/synthetic")
