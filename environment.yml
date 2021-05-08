@@ -18,4 +18,5 @@ dependencies:
     - torch-geometric
     - geometric-vector-perceptron
     - pytorch-lightning
+    - gdown
     - -e .
