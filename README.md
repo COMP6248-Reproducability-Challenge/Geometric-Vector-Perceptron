@@ -14,12 +14,10 @@ conda env create -f environment.yml
 
 ## Datasets
 
-Synthetic dataset:
+### To download all datasets
 
-```python
-from src.data.make_dataset import download_synthetic_dataset
-
-download_synthetic_dataset()
+```bash
+python gvp/data/make_dataset.py
 ```
 
 ## Authors
