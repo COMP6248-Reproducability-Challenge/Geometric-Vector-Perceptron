@@ -9,7 +9,8 @@ def download_synthetic_dataset():
     url = "https://drive.google.com/drive/folders/1ip1q3zKL2N3-pubdOBnk0dw9AnnQSNpE"
 
     # mkdir if it doesnt exist
-    data_path = Path("data/synthetic")
+    data_path = Path(__file__).resolve().parents[2] / "data/synthetic"
+    print(data_path)
     data_path.mkdir(parents=True, exist_ok=True)
 
     gdown.download_folder(url, output=data_path.parent)
