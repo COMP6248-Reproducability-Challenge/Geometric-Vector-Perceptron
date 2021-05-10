@@ -76,6 +76,8 @@ class SyntheticGNN(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         loss = self.shared_step(batch)
+
+        self.log("train_loss", loss)
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -212,11 +214,11 @@ def main():
     # ------------
     # training
     # ------------
-    wandb_logger = WandbLogger(name="SyntheticGNN-{args.task}", project="GVP", reinit=True)
+    wandb_logger = WandbLogger(name=f"SyntheticGNN-{args.task}", project="GVP", reinit=True)
     checkpoint_callback = ModelCheckpoint(
         monitor="val_loss",
         dirpath="model_checkpoints",
-        filename="SyntheticGNN-{args.task}-{epoch:02d}-{val_loss:.2f}",
+        filename=f"SyntheticGNN-{args.task}-"+"{epoch:02d}-{val_loss:.2f}",
         save_weights_only=True,
         save_top_k=3,
         mode="min",
