@@ -212,7 +212,7 @@ def main():
     # ------------
     # training
     # ------------
-    wandb_logger = WandbLogger(name="SyntheticGNN", project="GVP", reinit=True)
+    wandb_logger = WandbLogger(name="SyntheticGNN-{args.task}", project="GVP", reinit=True)
     checkpoint_callback = ModelCheckpoint(
         monitor="val_loss",
         dirpath="model_checkpoints",
