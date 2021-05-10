@@ -1,0 +1,1 @@
+from gvp.models.synthetic_model import SyntheticModel
