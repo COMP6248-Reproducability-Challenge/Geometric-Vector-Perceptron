@@ -1,6 +1,7 @@
 model_checkpoints/
 wandb/
 lightning_logs/
+notebooks/lightning_logs
 data/synthetic
 .vscode/
 

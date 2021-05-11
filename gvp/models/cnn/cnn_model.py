@@ -8,8 +8,10 @@ from torch import optim
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.callbacks import ModelCheckpoint
+import wandb
 
 from gvp import CNNDataModule
+import gvp
 
 class ShallowCNN(pl.LightningModule):
     def __init__(self, kernel_size):

@@ -4,6 +4,8 @@ import torch
 from torch.utils.data import DataLoader, TensorDataset, random_split
 import pytorch_lightning as pl
 
+import gvp
+
 def scaling(y):
     min_y = y.min() #-10.
     max_y = y.max() #10.
