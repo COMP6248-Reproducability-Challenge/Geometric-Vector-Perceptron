@@ -97,7 +97,7 @@ def main():
         save_top_k=3,
         mode="min",
     )
-    trainer = pl.Trainer.from_argparse_args(args, max_epochs=1, logger=wandb_logger, callbacks=[checkpoint_callback])
+    trainer = pl.Trainer.from_argparse_args(args, max_epochs=100, logger=wandb_logger, callbacks=[checkpoint_callback])
     trainer.fit(model, dm)
 
     # ------------
