@@ -30,7 +30,6 @@ class SyntheticDataModule(pl.LightningDataModule):
 
         data_list = [self.transform(Data(x=synthetic[n, 1], pos=synthetic[n, 0, :, :3], norm=synthetic[n, 1, :, :3], y=targets[n])) for n in range(num_structs)]
 
-        # self.train_set, self.val_set, self.test_set = random_split(data_list, lengths=[int(num_structs*0.8), int(num_structs*0.1), int(num_structs*0.1)])
 
         self.train_set, self.test_set = train_test_split(
             data_list, test_size=0.1

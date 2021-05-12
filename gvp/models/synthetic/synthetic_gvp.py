@@ -2,143 +2,109 @@ from argparse import ArgumentParser
 import gvp
 from gvp import SyntheticDataModule
 
+
 from pathlib import Path
 import pytorch_lightning as pl
 import torch
-from geometric_vector_perceptron import GVP_MPNN, GVPLayerNorm
-from gvp.gvp import GVP
+from gvp.gvp import GVP, GVPConvLayer, LayerNorm, _split
 from torch import nn, optim
 import torch.nn.functional as F
 from torch_geometric import transforms
-from torch_geometric.nn import global_mean_pool
 from torchmetrics.functional import mean_squared_error
-from gvp.utils import _split, _merge
 import wandb
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import WandbLogger
+from torch_scatter import scatter_mean
 
 
 class SyntheticGVP(pl.LightningModule):
-    def __init__(
-        self,
-        feats_x_in,
-        vectors_x_in,
-        feats_edge_in,
-        vectors_edge_in,
-        feats_h,
-        vectors_h,
-        dropout=0.0,
-        residual=False,
-        vector_dim=3,
-        verbose=0,
-    ):
-        super().__init__()
+    '''
+    GVP-GNN for Model Quality Assessment as described in manuscript.
+    
+    Takes in protein structure graphs of type `torch_geometric.data.Data` 
+    or `torch_geometric.data.Batch` and returns a scalar score for
+    each graph in the batch in a `torch.Tensor` of shape [n_nodes]
+    
+    Should be used with `gvp.data.ProteinGraphDataset`, or with generators
+    of `torch_geometric.data.Batch` objects with the same attributes.
+    
+    :param node_in_dim: node dimensions in input graph, should be
+                        (6, 3) if using original features
+    :param node_h_dim: node dimensions to use in GVP-GNN layers
+    :param node_in_dim: edge dimensions in input graph, should be
+                        (32, 1) if using original features
+    :param edge_h_dim: edge dimensions to embed to before use
+                       in GVP-GNN layers
+    :seq_in: if `True`, sequences will also be passed in with
+             the forward pass; otherwise, sequence information
+             is assumed to be part of input node embeddings
+    :param num_layers: number of GVP-GNN layers
+    :param drop_rate: rate to use in all dropout layers
+    '''
+    def __init__(self, node_in_dim, node_h_dim, 
+                 edge_in_dim, edge_h_dim,
+                 seq_in=False, num_layers=3, drop_rate=0.1):
+        
+        super(SyntheticGVP, self).__init__()
 
-        self.feats_x_in = feats_x_in
-        self.vectors_x_in = vectors_x_in
-        self.feats_edge_in = feats_edge_in
-        self.vectors_edge_in = vectors_edge_in
-        self.feats_h = feats_h
-        self.vectors_h = vectors_h
-        self.dropout = dropout
-        self.residual = residual
-        self.vector_dim = vector_dim
-        self.verbose = verbose
-
+        self.node_in_dim = node_in_dim
+        self.edge_in_dim = edge_in_dim
+        
+        if seq_in:
+            self.W_s = nn.Embedding(20, 20)
+            node_in_dim = (node_in_dim[0] + 20, node_in_dim[1])
+        
         self.W_v = nn.Sequential(
-            # GVPLayerNorm(feats_x_in),
-            GVP(
-                dim_vectors_in=vectors_x_in,
-                dim_feats_in=feats_x_in,
-                dim_vectors_out=vectors_h,
-                dim_feats_out=feats_h,
-            ),
+            LayerNorm(node_in_dim),
+            GVP(node_in_dim, node_h_dim, activations=(None, None))
         )
-
         self.W_e = nn.Sequential(
-            GVPLayerNorm(feats_edge_in),
-            GVP(
-                dim_vectors_in=vectors_edge_in,
-                dim_feats_in=feats_edge_in,
-                dim_vectors_out=vectors_h,
-                dim_feats_out=feats_h,
-            ),
+            LayerNorm(edge_in_dim),
+            GVP(edge_in_dim, edge_h_dim, activations=(None, None))
         )
-
+        
         self.layers = nn.ModuleList(
-            GVP_MPNN(
-                feats_x_in=feats_h,
-                vectors_x_in=vectors_h,
-                feats_x_out=feats_h,
-                vectors_x_out=vectors_h,
-                feats_edge_in=feats_h,
-                vectors_edge_in=vectors_h,
-                feats_edge_out=0,
-                vectors_edge_out=0,
-                dropout=dropout,
-                residual=residual,
-                vector_dim=vector_dim,
-                verbose=verbose,
-            )
-            for _ in range(3) # 3 message passing layers
-        )
-
+                GVPConvLayer(node_h_dim, edge_h_dim, drop_rate=drop_rate) 
+            for _ in range(num_layers))
+        
+        ns, _ = node_h_dim
         self.W_out = nn.Sequential(
-            GVPLayerNorm(feats_h),
-            GVP(
-                dim_vectors_in=vectors_h,
-                dim_vectors_out=0,
-                dim_feats_in=feats_h,
-                dim_feats_out=feats_h
-            )
-        )
-
+            LayerNorm(node_h_dim),
+            GVP(node_h_dim, (ns, 0)))
+            
         self.dense = nn.Sequential(
-            nn.Linear(feats_h, 2*feats_h), nn.ReLU(inplace=True),
-            nn.Dropout(p=dropout),
-            nn.Linear(2*feats_h, 1)
+            nn.Linear(ns, 2*ns), nn.ReLU(inplace=True),
+            nn.Dropout(p=drop_rate),
+            nn.Linear(2*ns, 1)
         )
 
-        self.dense = nn.Linear(feats_h + (vectors_h * vector_dim), 1)
-
-    def forward(self, data):
-        x = data.x
-        batch = data.batch
-        edge_index = data.edge_index
-        edge_attr = data.edge_attr
-
-        print(*_split(x, self.vectors_x_in, self.feats_x_in, self.vector_dim))
-
-        x = _merge(
-            self.W_v(_split(x, self.vectors_x_in, self.feats_x_in, self.vector_dim))
-        )
-
-        print(x.shape)
-        edge_attr = _merge(
-            self.W_e(
-                *_split(edge_attr, self.vectors_x_in, self.feats_x_in, self.vector_dim)
-            )
-        )
-
+    def forward(self, h_V, edge_index, h_E, seq=None, batch=None):      
+        '''
+        :param h_V: tuple (s, V) of node embeddings
+        :param edge_index: `torch.Tensor` of shape [2, num_edges]
+        :param h_E: tuple (s, V) of edge embeddings
+        :param seq: if not `None`, int `torch.Tensor` of shape [num_nodes]
+                    to be embedded and appended to `h_V`
+        '''
+        if seq is not None:
+            seq = self.W_s(seq)
+            h_V = (torch.cat([h_V[0], seq], dim=-1), h_V[1])
+        h_V = self.W_v(h_V)
+        h_E = self.W_e(h_E)
         for layer in self.layers:
-            x = layer(x, edge_index, edge_attr)
-
-        x = _merge(
-            self.W_out(
-                *_split(x, self.vectors_h, self.feats_h, self.vector_dim)
-            )
-        )
-
-        x = global_mean_pool(x, batch)
-
-        x = self.dense(x)
-
-        return x
+            h_V = layer(h_V, edge_index, h_E)
+        out = self.W_out(h_V)
+        
+        if batch is None: out = out.mean(dim=0, keepdims=True)
+        else: out = scatter_mean(out, batch, dim=0)
+        
+        return self.dense(out).squeeze(-1) + 0.5
 
     def shared_step(self, batch):
-        data, y = batch, batch.y
-        y_hat = self(data).view(-1)
-        loss = mean_squared_error(y_hat, y)
+        h_V = _split(batch.x, self.node_in_dim[1])
+        h_E = _split(batch.edge_attr, self.edge_in_dim[1])
+        y_hat = self(h_V, batch.edge_index, h_E, batch=batch.batch)
+        loss = mean_squared_error(y_hat, batch.y)
 
         return loss
 
@@ -160,7 +126,6 @@ class SyntheticGVP(pl.LightningModule):
 
     def configure_optimizers(self):
         return optim.Adam(self.parameters())
-
 
 def main():
     # ------------
@@ -192,7 +157,7 @@ def main():
     # ------------
     # model
     # ------------
-    model = SyntheticGVP(1, 1, 1, 1, 20, 4)
+    model = SyntheticGVP((1, 1), (20, 4), (1, 1), (20, 4))
 
     # ------------
     # training
@@ -210,8 +175,6 @@ def main():
     )
     trainer = pl.Trainer.from_argparse_args(
         args,
-        max_epochs=100,
-        gpus=1,
         logger=wandb_logger,
         callbacks=[checkpoint_callback],
     )
