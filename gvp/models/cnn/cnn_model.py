@@ -14,6 +14,9 @@ from gvp import CNNDataModule
 import gvp
 
 class ShallowCNN(pl.LightningModule):
+    """
+    Shallow 3-layer CNN
+    """
     def __init__(self, kernel_size):
         super().__init__()
         self.conv1 = nn.Conv3d(3, 32, (kernel_size,kernel_size,kernel_size))
@@ -31,12 +34,11 @@ class ShallowCNN(pl.LightningModule):
         return out
 
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.parameters(), lr=1e-3)
+        optimizer = torch.optim.Adam(self.parameters())
         return optimizer
 
     def training_step(self, batch, batch_idx):
         x, y = batch
-        # y = scaling(y).unsqueeze(1)
         y = y.unsqueeze(1)
         y_hat = self(x)
         loss = F.mse_loss(y_hat, y)
@@ -45,7 +47,6 @@ class ShallowCNN(pl.LightningModule):
     
     def validation_step(self, batch, batch_idx):
         x, y = batch
-        # y = scaling(y).unsqueeze(1)
         y = y.unsqueeze(1)
         y_hat = self(x)
         val_loss = F.mse_loss(y_hat, y)
@@ -54,7 +55,6 @@ class ShallowCNN(pl.LightningModule):
     
     def test_step(self, batch, batch_idx):
         x, y = batch
-        # y = scaling(y).unsqueeze(1)
         y = y.unsqueeze(1)
         y_hat = self(x)
         loss = F.mse_loss(y_hat, y)
@@ -62,8 +62,11 @@ class ShallowCNN(pl.LightningModule):
         return loss
 
 def main():
+    """
+    Training and evaluating the model
+    """
     # ------------
-    # args
+    # Args can be set when running script from terminal
     # ------------
     parser = ArgumentParser()
     parser.add_argument('--batch_size', default=64, type=int)
@@ -74,19 +77,19 @@ def main():
     args = parser.parse_args()
 
     # ------------
-    # data
+    # Set directory to get dataset from
     # ------------
     data_dir = Path(gvp.__file__).parents[1] / "data/synthetic"
 
     dm = CNNDataModule(data_dir, args.batch_size, args.task, num_workers=args.num_workers, scaling=args.scaling)
 
     # ------------
-    # model
+    # Define model
     # ------------
     model = ShallowCNN(kernel_size=3)
 
     # ------------
-    # training
+    # Training: use wandb to record and save logs (https://wandb.ai/afiqahk/GVP?workspace=user-afiqahk)
     # ------------
     wandb_logger = WandbLogger(name=f"ShallowCNN-{args.task}", project="GVP", reinit=True)
     checkpoint_callback = ModelCheckpoint(
@@ -101,7 +104,7 @@ def main():
     trainer.fit(model, dm)
 
     # ------------
-    # testing
+    # Testing
     # ------------
     result = trainer.test(datamodule=dm)
     print(result)

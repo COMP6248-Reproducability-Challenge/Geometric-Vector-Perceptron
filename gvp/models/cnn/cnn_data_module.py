@@ -7,13 +7,19 @@ import pytorch_lightning as pl
 import gvp
 
 def scaling(y):
+    """
+    y: targets (Tensor)
+    Function to normalize the targets, used for 'combined' task.
+    """
     min_y = y.min() #-10.
     max_y = y.max() #10.
     return ( y - min_y ) / ( max_y - min_y )
 
 class CNNDataModule(pl.LightningDataModule):
+    """
+    scaling:     Scaling/Normalising can also be done for the other 2 tasks, however in the final implementation default was set to False.
+    """
     def __init__(self, data_dir, batch_size, task, num_workers=8, scaling=False):
-        # 0: off-center, 1: perimeter 2: combined
         super().__init__()
         self.data_dir = Path(data_dir)
         self.batch_size = batch_size
@@ -26,8 +32,8 @@ class CNNDataModule(pl.LightningDataModule):
                    'perimeter':1,
                    'combined':2
                    }
+        # The synthetic CNN dataset puts the channel last. Rearrange the dimensions to fit PyTorch function.
         X = torch.Tensor( np.load(self.data_dir/"cnn.npy") ).permute(0,4,1,2,3)
-        # X = X[:, ::2] # skip channel 1 - non-special atoms
         
         y = []
         with np.load(self.data_dir/"answers.npz") as f:
@@ -42,9 +48,10 @@ class CNNDataModule(pl.LightningDataModule):
 
         dataset = TensorDataset(X, y[taskmap[self.task]])
 
-        # Split
+        # Split to get test set
         full, test = random_split(dataset, [18000, 2000])
-
+        
+        # Splitting again for training or use test set. Add dims which can be called with datamodule.size()
         if stage == 'fit' or stage is None:
             self.cnn_train, self.cnn_val = random_split(full, [16000, 2000])
             self.dims = tuple(self.cnn_train[0][0].shape)
