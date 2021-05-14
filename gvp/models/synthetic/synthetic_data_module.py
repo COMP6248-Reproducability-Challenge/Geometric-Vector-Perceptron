@@ -5,6 +5,7 @@ import torch
 from torch.utils.data import random_split
 from torch_geometric.data import Data, DataLoader
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import minmax_scale
 
 
 class SyntheticDataModule(pl.LightningDataModule):
@@ -19,7 +20,12 @@ class SyntheticDataModule(pl.LightningDataModule):
     def setup(self, stage):
         synthetic = torch.from_numpy(np.load(self.data_dir/"synthetic.npy"))
         with np.load(self.data_dir/"answers.npz") as data:
-            targets = torch.from_numpy(data[self.task])
+            if self.task == "combined":
+                off_center = torch.from_numpy(data["off_center"])
+                perimeter = torch.from_numpy(data["perimeter"])
+                targets = np.abs(minmax_scale(off_center) - minmax_scale(perimeter))
+            else:
+                targets = torch.from_numpy(data[self.task])
 
         num_structs = targets.shape[0] # number of stuctures
         

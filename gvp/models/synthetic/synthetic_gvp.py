@@ -98,11 +98,19 @@ class SyntheticGVP(pl.LightningModule):
         if batch is None: out = out.mean(dim=0, keepdims=True)
         else: out = scatter_mean(out, batch, dim=0)
         
-        return self.dense(out).squeeze(-1) + 0.5
+        return self.dense(out).squeeze(-1)
 
     def shared_step(self, batch):
-        h_V = _split(batch.x, self.node_in_dim[1])
-        h_E = _split(batch.edge_attr, self.edge_in_dim[1])
+        if (self.node_in_dim[1] != 0):
+            h_V = _split(batch.x, self.node_in_dim[1])
+        else:
+            h_V = batch.x
+        
+        if (self.edge_in_dim[1] != 0):
+            h_E = _split(batch.edge_attr, self.edge_in_dim[1])
+        else:
+            h_E = batch.edge_attr
+            
         y_hat = self(h_V, batch.edge_index, h_E, batch=batch.batch)
         loss = mean_squared_error(y_hat, batch.y)
 
