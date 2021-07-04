@@ -2,6 +2,8 @@
 
 Reproduction of [Learning from Protein Structure with Geometric Vector Perceptrons](https://openreview.net/pdf?id=1YLJDvSx6J4).
 
+Reproducibility report: [report.pdf](report.pdf)
+
 University of Southampton COMP6248 Deep Learning Reproducibility Challenge 2021-2022.
 
 ## Requirements
